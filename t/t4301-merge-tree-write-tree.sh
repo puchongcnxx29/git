@@ -126,7 +126,7 @@ test_expect_success 'test conflict notices and such' '
 	cat <<-EOF >expect &&
 	HASH
 	greeting
-	whatever~side1
+	whatever
 
 	Auto-merging greeting
 	CONFLICT (content): Merge conflict in greeting
@@ -135,6 +135,38 @@ test_expect_success 'test conflict notices and such' '
 	CONFLICT (modify/delete): whatever~side1 deleted in side2 and modified in side1.  Version side1 of whatever~side1 left in tree.
 	EOF
 
+	test_cmp expect actual
+'
+
+test_expect_success SYMLINKS 'original file names and type changes' '
+	git switch --detach side1^ &&
+	test_commit modified whatever &&
+
+	git switch --detach HEAD^ &&
+	git mv whatever wherever &&
+	ln -s wherever whatever &&
+	git add whatever &&
+	test_tick &&
+	git commit -m symlink &&
+	git tag symlink &&
+
+	test_expect_code 1 \
+	git merge-tree -z modified symlink >out &&
+	printf "\\n" >>out &&
+	anonymize_hash out >actual &&
+
+	q_to_tab <<-\EOF | lf_to_nul >expect &&
+	HASH
+	120000 HASH 3Qwhatever
+	100644 HASH 1Qwhatever
+	100644 HASH 2Qwhatever
+
+	EOF
+
+	q_to_nul <<-EOF >>expect &&
+	2QwhateverQwhatever~modifiedQCONFLICT (distinct modes)QCONFLICT (distinct types): whatever had different types on each side; renamed one of them so each can be recorded somewhere.
+	Q
+	EOF
 	test_cmp expect actual
 '
 
@@ -154,7 +186,7 @@ test_expect_success 'Just the conflicted files without the messages' '
 	test_expect_code 1 git merge-tree --write-tree --no-messages --name-only side1 side2 >out &&
 	anonymize_hash out >actual &&
 
-	test_write_lines HASH greeting whatever~side1 >expect &&
+	test_write_lines HASH greeting whatever >expect &&
 
 	test_cmp expect actual
 '
@@ -169,14 +201,14 @@ test_expect_success 'Check conflicted oids and modes without messages' '
 	100644 HASH 1Qgreeting
 	100644 HASH 2Qgreeting
 	100644 HASH 3Qgreeting
-	100644 HASH 1Qwhatever~side1
-	100644 HASH 2Qwhatever~side1
+	100644 HASH 1Qwhatever
+	100644 HASH 2Qwhatever
 	EOF
 
 	test_cmp expect actual &&
 
 	# Check the actual hashes against the `ls-files -u` output too
-	tail -n +2 out | sed -e s/side1/HEAD/ >actual &&
+	tail -n +2 out | sed -e s/whatever/whatever~HEAD/ >actual &&
 	test_cmp conflicted-file-info actual
 '
 
@@ -201,19 +233,19 @@ test_expect_success 'NUL terminated conflicted file "lines"' '
 	100644 HASH 1Qgreeting
 	100644 HASH 2Qgreeting
 	100644 HASH 3Qgreeting
-	100644 HASH 1Qwhatever~tweak1
-	100644 HASH 2Qwhatever~tweak1
-	100644 HASH 1QΑυτά μου φαίνονται κινέζικα
+	100644 HASH 1Qwhatever
+	100644 HASH 2Qwhatever
+	100644 HASH 1Qnumbers
 	100644 HASH 2QΑυτά μου φαίνονται κινέζικα
-	100644 HASH 3QΑυτά μου φαίνονται κινέζικα
+	100644 HASH 3Qnumbers
 
 	EOF
 
 	q_to_nul <<-EOF >>expect &&
 	1QgreetingQAuto-mergingQAuto-merging greeting
 	Q1QgreetingQCONFLICT (contents)QCONFLICT (content): Merge conflict in greeting
-	Q2Qwhatever~tweak1QwhateverQCONFLICT (file/directory)QCONFLICT (file/directory): directory in the way of whatever from tweak1; moving it to whatever~tweak1 instead.
-	Q1Qwhatever~tweak1QCONFLICT (modify/delete)QCONFLICT (modify/delete): whatever~tweak1 deleted in side2 and modified in tweak1.  Version tweak1 of whatever~tweak1 left in tree.
+	Q2QwhateverQwhatever~tweak1QCONFLICT (file/directory)QCONFLICT (file/directory): directory in the way of whatever from tweak1; moving it to whatever~tweak1 instead.
+	Q2QwhateverQwhatever~tweak1QCONFLICT (modify/delete)QCONFLICT (modify/delete): whatever~tweak1 deleted in side2 and modified in tweak1.  Version tweak1 of whatever~tweak1 left in tree.
 	Q1QΑυτά μου φαίνονται κινέζικαQAuto-mergingQAuto-merging Αυτά μου φαίνονται κινέζικα
 	Q1QΑυτά μου φαίνονται κινέζικαQCONFLICT (contents)QCONFLICT (content): Merge conflict in Αυτά μου φαίνονται κινέζικα
 	Q

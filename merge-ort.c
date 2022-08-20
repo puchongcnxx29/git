@@ -3806,6 +3806,7 @@ static void process_entry(struct merge_options *opt,
 			  struct conflict_info *ci,
 			  struct directory_versions *dir_metadata)
 {
+	const char *orig_path = path;
 	int df_file_index = 0;
 
 	VERIFY_CI(ci);
@@ -3852,7 +3853,6 @@ static void process_entry(struct merge_options *opt,
 		 */
 		struct conflict_info *new_ci;
 		const char *branch;
-		const char *old_path = path;
 		int i;
 
 		assert(ci->merged.result.mode == S_IFDIR);
@@ -3903,10 +3903,10 @@ static void process_entry(struct merge_options *opt,
 		strmap_put(&opt->priv->paths, path, new_ci);
 
 		path_msg(opt, CONFLICT_FILE_DIRECTORY, 0,
-			 path, old_path, NULL, NULL,
+			 orig_path, path, NULL, NULL,
 			 _("CONFLICT (file/directory): directory in the way "
 			   "of %s from %s; moving it to %s instead."),
-			 old_path, branch, path);
+			 orig_path, branch, path);
 
 		/*
 		 * Zero out the filemask for the old ci.  At this point, ci
@@ -3986,7 +3986,7 @@ static void process_entry(struct merge_options *opt,
 
 			if (rename_a && rename_b) {
 				path_msg(opt, CONFLICT_DISTINCT_MODES, 0,
-					 path, a_path, b_path, NULL,
+					 orig_path, a_path, b_path, NULL,
 					 _("CONFLICT (distinct types): %s had "
 					   "different types on each side; "
 					   "renamed both of them so each can "
@@ -3994,7 +3994,7 @@ static void process_entry(struct merge_options *opt,
 					 path);
 			} else {
 				path_msg(opt, CONFLICT_DISTINCT_MODES, 0,
-					 path, rename_a ? a_path : b_path,
+					 orig_path, rename_a ? a_path : b_path,
 					 NULL, NULL,
 					 _("CONFLICT (distinct types): %s had "
 					   "different types on each side; "
@@ -4087,7 +4087,7 @@ static void process_entry(struct merge_options *opt,
 			if (S_ISGITLINK(merged_file.mode))
 				reason = _("submodule");
 			path_msg(opt, CONFLICT_CONTENTS, 0,
-				 path, NULL, NULL, NULL,
+				 orig_path, NULL, NULL, NULL,
 				 _("CONFLICT (%s): Merge conflict in %s"),
 				 reason, path);
 		}
@@ -4132,7 +4132,7 @@ static void process_entry(struct merge_options *opt,
 			 */
 		} else {
 			path_msg(opt, CONFLICT_MODIFY_DELETE, 0,
-				 path, NULL, NULL, NULL,
+				 orig_path, path, NULL, NULL,
 				 _("CONFLICT (modify/delete): %s deleted in %s "
 				   "and modified in %s.  Version %s of %s left "
 				   "in tree."),
@@ -4598,7 +4598,7 @@ void merge_get_conflicted_files(struct merge_result *result,
 			if (!(ci->filemask & (1ul << i)))
 				continue;
 
-			si = xmalloc(sizeof(*si));
+			FLEX_ALLOC_STR(si, path, ci->pathnames[i]);
 			si->stage = i+1;
 			si->mode = ci->stages[i].mode;
 			oidcpy(&si->oid, &ci->stages[i].oid);
